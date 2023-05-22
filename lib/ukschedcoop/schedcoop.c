@@ -105,6 +105,7 @@ static void schedcoop_schedule(struct uk_sched *s)
 		 */
 		c->idle_return_time = min_wakeup_time;
 		next = &c->idle;
+		uk_sched_stats_idle_count_incr(s);
 	}
 
 	if (next != prev) {
@@ -117,13 +118,26 @@ static void schedcoop_schedule(struct uk_sched *s)
 		uk_thread_clear_queueable(next);
 	}
 
+	uk_sched_stats_sched_count_incr(s);
+
 	ukplat_lcpu_restore_irqf(flags);
 
 	/* Interrupting the switch is equivalent to having the next thread
 	 * interrupted at the return instruction. And therefore at safe point.
 	 */
-	if (prev != next)
+	if (prev != next) {
+		if (next != &c->idle) {
+			UK_ASSERT(prev->sched);
+			uk_sched_stats_next_count_incr(s);
+		}
 		uk_sched_thread_switch(next);
+	}
+}
+
+static void schedcoop_yield(struct uk_sched *s)
+{
+	uk_sched_stats_yield_count_incr(s);
+	schedcoop_schedule(s);
 }
 
 static int schedcoop_thread_add(struct uk_sched *s, struct uk_thread *t)
@@ -191,7 +205,13 @@ static __noreturn void idle_thread_fn(void *argp)
 			 * Check if something else can be scheduled now.
 			 */
 			ukplat_lcpu_restore_irqf(flags);
-			schedcoop_schedule(&c->sched);
+
+			/* Use yield() here instead of schedule(), as the
+			 * latter would cause num_sched to exceed num_yield,
+			 * which would errneously imply a preemption, as
+			 * num_preempt = num_sched - num_yield
+			 */
+			schedcoop_yield(&c->sched);
 
 			continue;
 		}
@@ -212,8 +232,13 @@ static __noreturn void idle_thread_fn(void *argp)
 
 		ukplat_lcpu_restore_irqf(flags);
 
-		/* try to schedule a thread that might now be available */
-		schedcoop_schedule(&c->sched);
+		/* Try to schedule a thread that might now be available.
+		 * Use yield() here instead of schedule(), as the
+		 * latter would cause num_sched to exceed num_yield,
+		 * which would errneously imply a preemption, as
+		 * num_preempt = num_sched - num_yield
+		 */
+		schedcoop_yield(&c->sched);
 	}
 }
 
@@ -288,7 +313,7 @@ struct uk_sched *uk_schedcoop_create(struct uk_alloc *a,
 
 	uk_sched_init(&c->sched,
 			schedcoop_start,
-			schedcoop_schedule,
+			schedcoop_yield,
 			schedcoop_thread_add,
 			schedcoop_thread_remove,
 			schedcoop_thread_blocked,
