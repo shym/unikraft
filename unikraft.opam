@@ -1,0 +1,18 @@
+opam-version: "2.0"
+name: "unikraft"
+version: "0.17.0+fix"
+synopsis: "Unikraft sources"
+description: """\
+The unikraft package extracts the source code from the main Unikraft repository
+so that other packages can use it to build unikernels and access its support
+scripts."""
+maintainer: "samuel@tarides.com"
+authors: "Unikraft contributors"
+license: ["BSD-3-Clause" "MIT" "GPL-2.0"]
+homepage: "https://unikraft.org"
+bug-reports: "https://github.com/shym/ocaml-unikraft/issues"
+install: [
+  ["rm" "-rf" ".github" ".gitignore"]
+  ["cp" "-r" "." "%{lib}%/unikraft"]
+]
+dev-repo: "git+https://github.com/unikraft/unikraft.git"
