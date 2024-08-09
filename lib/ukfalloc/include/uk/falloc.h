@@ -39,6 +39,13 @@
 #include <uk/essentials.h>
 #include <uk/assert.h>
 
+#ifdef CONFIG_LIBUKFALLOC_STATS
+#include <uk/atomic.h>
+#include <uk/falloc/store.h>
+#include <uk/list.h>
+#include <uk/store.h>
+#endif /* CONFIG_LIBUKFALLOC_STATS */
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -128,7 +135,43 @@ struct uk_falloc {
 
 	/** The total amount of memory managed by the allocator in bytes */
 	__sz total_memory;
+
+#ifdef CONFIG_LIBUKFALLOC_STATS
+	struct uk_list_head store_obj_list;
+	struct uk_store_object *stats;
+#endif /* CONFIG_LIBUKFALLOC_STATS */
 };
+
+#if CONFIG_LIBUKFALLOC_STATS
+struct _uk_falloc_stats_global {
+	__sz free_memory;
+	__sz total_memory;
+};
+
+extern struct _uk_falloc_stats_global _uk_falloc_stats_global;
+
+int _uk_falloc_init_stats(struct uk_falloc *fa);
+#else /* !CONFIG_LIBUKFALLOC_STATS */
+static inline int _uk_falloc_init_stats(struct uk_falloc *fa __unused)
+{
+	return 0;
+}
+#endif /* !CONFIG_LIBUKFALLOC_STATS */
+
+/* Helper for initialzing a frame allocator */
+#define uk_falloc_init(_fa, _falloc_f, _falloc_from_range_f, _ffree_f,	\
+		       _addmem_f)					\
+	({								\
+		int _rc;						\
+		(_fa)->falloc = (_falloc_f);				\
+		(_fa)->falloc_from_range = (_falloc_from_range_f);	\
+		(_fa)->ffree  = (_ffree_f);				\
+		(_fa)->addmem = (_addmem_f);				\
+		(_fa)->free_memory = 0;					\
+		(_fa)->total_memory = 0;				\
+		_rc = _uk_falloc_init_stats(_fa);			\
+		_rc;							\
+	})
 
 /**
  * Allocates physical memory
@@ -177,6 +220,42 @@ static inline void uk_ffree(struct uk_falloc *fa, __paddr_t paddr,
 	rc = fa->ffree(fa, paddr, frames);
 	UK_ASSERT(rc == 0);
 }
+
+/* The following should be used to instrument the frame allocator
+ * implementation for statistics.
+ *
+ * FIXME:
+ * Although there is a window of inconsistency between the time
+ * total_memory and free_memory counters are initialized, we use
+ * atomics as the frame allocator can be called in async context
+ * by ukvmem.
+ */
+#if CONFIG_LIBUKFALLOC_STATS
+static inline void uk_falloc_stats_global_memtotal_incr(__sz len)
+{
+	uk_fetch_add(&_uk_falloc_stats_global.total_memory, len);
+}
+
+static inline void uk_falloc_stats_global_memtotal_decr(__sz len)
+{
+	uk_fetch_sub(&_uk_falloc_stats_global.total_memory, len);
+}
+
+static inline void uk_falloc_stats_global_memfree_incr(__sz len)
+{
+	uk_fetch_add(&_uk_falloc_stats_global.free_memory, len);
+}
+
+static inline void uk_falloc_stats_global_memfree_decr(__sz len)
+{
+	uk_fetch_sub(&_uk_falloc_stats_global.free_memory, len);
+}
+#else /* !CONFIG_LIBUKFALLOC_STATS */
+#define uk_falloc_stats_global_memtotal_incr(_len) do {} while (0)
+#define uk_falloc_stats_global_memtotal_decr(_len) do {} while (0)
+#define uk_falloc_stats_global_memfree_incr(_len)  do {} while (0)
+#define uk_falloc_stats_global_memfree_decr(_len)  do {} while (0)
+#endif /* !CONFIG_LIBUKFALLOC_STATS */
 
 #ifdef __cplusplus
 }
