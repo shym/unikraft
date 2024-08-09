@@ -31,6 +31,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <uk/falloc.h>
 #include <uk/fallocbuddy.h>
 #include <uk/config.h>
 #include <uk/essentials.h>
@@ -641,6 +642,8 @@ static inline void bfa_fl_add_tail(struct buddy_framealloc *bfa,
 
 	UK_ASSERT(mb->level < BFA_LEVELS);
 	bfa->fa.free_memory += BFA_Lx_SIZE(mb->level);
+
+	uk_falloc_stats_global_memfree_incr(BFA_Lx_SIZE(mb->level));
 }
 
 static inline void bfa_fl_add(struct buddy_framealloc *bfa,
@@ -651,6 +654,8 @@ static inline void bfa_fl_add(struct buddy_framealloc *bfa,
 
 	UK_ASSERT(mb->level < BFA_LEVELS);
 	bfa->fa.free_memory += BFA_Lx_SIZE(mb->level);
+
+	uk_falloc_stats_global_memfree_incr(BFA_Lx_SIZE(mb->level));
 }
 
 static inline void bfa_fl_del(struct buddy_framealloc *bfa,
@@ -663,6 +668,8 @@ static inline void bfa_fl_del(struct buddy_framealloc *bfa,
 	UK_ASSERT(mb->level < BFA_LEVELS);
 	UK_ASSERT(bfa->fa.free_memory >= BFA_Lx_SIZE(mb->level));
 	bfa->fa.free_memory -= BFA_Lx_SIZE(mb->level);
+
+	uk_falloc_stats_global_memfree_decr(BFA_Lx_SIZE(mb->level));
 
 #ifdef CONFIG_LIBUKFALLOCBUDDY_DEBUG
 	memset(mb, 0xCD, sizeof(struct bfa_memblock));
@@ -1450,6 +1457,8 @@ static int bfa_do_addmem(struct buddy_framealloc *bfa, void *metadata,
 	bfa_zone_add(bfa, zone);
 	bfa->fa.total_memory += len;
 
+	uk_falloc_stats_global_memtotal_incr(len);
+
 	/* Add memory as new free memory */
 	bfa_fl_addmem(bfa, zone, paddr, len, 1);
 
@@ -1476,14 +1485,10 @@ int uk_fallocbuddy_init(struct uk_falloc *fa)
 {
 	struct buddy_framealloc *bfa = (struct buddy_framealloc *)fa;
 	unsigned int i;
+	int rc;
 
-	bfa->fa.falloc = bfa_alloc;
-	bfa->fa.falloc_from_range = bfa_alloc_from_range;
-	bfa->fa.ffree = bfa_free;
-	bfa->fa.addmem = bfa_addmem;
-
-	bfa->fa.free_memory = 0;
-	bfa->fa.total_memory = 0;
+	rc = uk_falloc_init(fa, bfa_alloc, bfa_alloc_from_range,
+			    bfa_free, bfa_addmem);
 
 	for (i = 0; i < BFA_LEVELS; i++)
 		UK_INIT_LIST_HEAD(&bfa->free_list[i]);
@@ -1492,7 +1497,7 @@ int uk_fallocbuddy_init(struct uk_falloc *fa)
 
 	bfa->zones = __NULL;
 
-	return 0;
+	return rc;
 }
 
 __sz uk_fallocbuddy_size(void)
