@@ -77,6 +77,15 @@ typedef const struct uk_thread * (*uk_sched_idle_thread_func_t)
 
 typedef int   (*uk_sched_start_t)(struct uk_sched *s, struct uk_thread *main);
 
+#if CONFIG_LIBUKSCHED_STATS
+struct uk_sched_stats {
+	unsigned long sched_count;
+	unsigned long yield_count;
+	unsigned long next_count;
+	unsigned long idle_count;
+};
+#endif /* CONFIG_LIBUKSCHED_STATS */
+
 struct uk_sched {
 	uk_sched_yield_func_t yield;
 
@@ -98,6 +107,10 @@ struct uk_sched {
 	struct uk_alloc *a_auxstack; /**< default allocator for aux stacks */
 	struct uk_alloc *a_uktls; /**< default allocator for TLS+ectx */
 	struct uk_sched *next;
+#if CONFIG_LIBUKSCHED_STATS
+	__nsec start_time;
+	struct uk_sched_stats stats;
+#endif /* CONFIG_LIBUKSCHED_STATS */
 };
 
 /* wrapper functions over scheduler callbacks */
