@@ -111,7 +111,7 @@
 #include <uk/intctlr.h>
 #endif /* CONFIG_LIBUKINTCTLR */
 
-int main(int argc, char *argv[]) __weak;
+int main(int argc, char *argv[]);
 static inline int do_main(int argc, char *argv[]);
 
 #if CONFIG_LIBUKBOOT_MAINTHREAD
