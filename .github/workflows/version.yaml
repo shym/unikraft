@@ -1,0 +1,16 @@
+name: Build and test
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install extra packages
+        run: |
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+      - name: Show configuration
+        run: |
+          support/build/cc-version.sh aarch64-linux-gnu-gcc
