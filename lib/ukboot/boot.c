@@ -112,7 +112,7 @@
 extern char **boot_argv;
 extern int boot_argc;
 
-int main(int argc, char *argv[]) __weak;
+int main(int argc, char *argv[]);
 
 #if CONFIG_LIBUKBOOT_MAINTHREAD
 static __noreturn void main_thread(void *, void *);
