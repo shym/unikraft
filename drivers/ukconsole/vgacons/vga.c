@@ -213,6 +213,35 @@ static struct uk_console_ops vga_ops = { .out = vga_console_out };
 
 static struct uk_console vga_dev;
 
+#define VGA_MISC_OUTPUT_REG 0x3cc
+#define VGA_IO_ADDRESS_SELECT_MASK 0b01
+#define VGA_ERAM_MASK 0b10
+#define VGA_GRAPHICS_ADDRESS_REG 0x3ce
+#define VGA_GRAPHICS_DATA_REG 0x3cf
+#define VGA_MISC_GRAPHICS_REG 0x06
+#define VGA_MEMORY_MAP_SELECT_MASK 0b1100
+
+static int vga_check_settings(void)
+{
+	__u8 eram, memory_map_select;
+
+	/* First, read the 'ERAM' bit in the 'Miscellaneous Output Register'.
+	 * It should be set, signifying that the VGA controller detects writes
+	 * to the VGA memory region.
+	 */
+	eram = inb(VGA_MISC_OUTPUT_REG) & VGA_ERAM_MASK;
+
+	/* Second, read 'Memory Map Select' filed in the 'Miscellaneous
+	 * Graphics Register'. It should be 0b11 in order to select the
+	 * 0xb8000-0xbffff address range.
+	 */
+	outb(VGA_GRAPHICS_ADDRESS_REG, VGA_MISC_GRAPHICS_REG);
+	memory_map_select = inb(VGA_GRAPHICS_DATA_REG)
+			    & VGA_MEMORY_MAP_SELECT_MASK;
+
+	return eram && memory_map_select == VGA_MEMORY_MAP_SELECT_MASK;
+}
+
 static int vga_init(struct ukplat_bootinfo *bi)
 {
 	unsigned long irq_flags;
@@ -224,12 +253,33 @@ static int vga_init(struct ukplat_bootinfo *bi)
 	terminal_color = vga_entry_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
 
 	local_irq_save(irq_flags);
+	if (!vga_check_settings()) {
+		__u8 val;
+
+		/* Set 'ERAM' in 'Miscellaneous Output Register'. */
+		val = inb(VGA_MISC_OUTPUT_REG);
+		outb(VGA_MISC_OUTPUT_REG, val | VGA_ERAM_MASK);
+
+		/* Set 'Memory Map Select' in 'Miscellaneous Graphics Reg'. */
+		outb(VGA_GRAPHICS_ADDRESS_REG, VGA_MISC_GRAPHICS_REG);
+		val = inb(VGA_GRAPHICS_DATA_REG);
+		outb(VGA_GRAPHICS_DATA_REG, val | VGA_MEMORY_MAP_SELECT_MASK);
+
+		/* When the settings are still not correct, we assume that there
+		 * is no VGA controller.
+		 */
+		if (!vga_check_settings()) {
+			uk_pr_err("Could not initialize the VGA driver\n");
+			return 0;
+		}
+	}
+
 	/* Location of the address and data registers is variable and denoted
 	 * by the least significant bit in the Input/Output register located
 	 * at 0x3cc. For our emulated color display, they should always be
 	 * 0x3d{4,5}, but better safe than sorry, so let's check at init time.
 	 */
-	if (inb(0x3cc) & 0x1) {
+	if (inb(VGA_MISC_OUTPUT_REG) & VGA_IO_ADDRESS_SELECT_MASK) {
 		areg = 0x3d4;
 		dreg = 0x3d5;
 	} else {
