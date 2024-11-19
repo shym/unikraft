@@ -433,6 +433,8 @@ int uk_sys_pipe(int pipefd[2], int flags)
 	if (unlikely(r < 0))
 		goto err_close;
 
+	uk_file_release(pipes[0]);
+	uk_file_release(pipes[1]);
 	pipefd[0] = rpipe;
 	pipefd[1] = r;
 	return  0;
