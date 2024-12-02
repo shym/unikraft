@@ -51,6 +51,7 @@ int __check_result uk_random_fill_buffer(void *buf, size_t buflen)
 {
 	__sz step, chunk_size, i;
 	__u32 rd;
+	int rc;
 
 	if (!driver)
 		return -ENODEV;
@@ -58,12 +59,18 @@ int __check_result uk_random_fill_buffer(void *buf, size_t buflen)
 	step = sizeof(__u32);
 	chunk_size = buflen % step;
 
-	for (i = 0; i < buflen - chunk_size; i += step)
-		*(__u32 *)((char *)buf + i) = uk_swrand_randr();
+	for (i = 0; i < buflen - chunk_size; i += step) {
+		rc = uk_swrand_randr(&rd);
+		if (unlikely(rc))
+			return rc;
+		*(__u32 *)((char *)buf + i) = rd;
+	}
 
 	/* fill the remaining bytes of the buffer */
 	if (chunk_size > 0) {
-		rd = uk_swrand_randr();
+		rc = uk_swrand_randr(&rd);
+		if (unlikely(rc))
+			return rc;
 		memcpy(buf + i, &rd, chunk_size);
 	}
 

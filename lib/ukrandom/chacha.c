@@ -75,6 +75,12 @@ UK_LIBPARAM_PARAM_ARR_ALIAS(seed, seedv_cmdl, __u32, CHACHA_SEED_LENGTH,
 			    "ChaCha20 256-bit key");
 #endif /* CONFIG_LIBUKRANDOM_CMDLINE_SEED */
 
+/* It is critical that the internal state is initialized before we generate
+ * random numbers. Instead of relying on the calling API, use this as an
+ * additional failsafe for self-protection.
+ */
+static __bool initialized = __false;
+
 /* This value isn't important, as long as it's sufficiently asymmetric */
 static const char sigma[16] = "expand 32-byte k";
 
@@ -191,6 +197,7 @@ int uk_swrand_fdt_init(void *fdt, struct uk_random_driver **drv)
 	*drv = (void *)UK_SWRAND_DRIVER_NONE;
 
 	chacha_init(&uk_swrand_def, seedv);
+	initialized = __true;
 
 	return rc;
 }
@@ -217,6 +224,7 @@ int uk_swrand_cmdline_init(struct uk_random_driver **drv)
 	*drv = (void *)UK_SWRAND_DRIVER_NONE;
 
 	chacha_init(&uk_swrand_def, seedv_cmdl);
+	initialized = __true;
 
 	return 0;
 }
@@ -246,11 +254,12 @@ int uk_swrand_init(struct uk_random_driver **drv)
 	uk_pr_info("Entropy source: %s\n", (*drv)->name);
 
 	chacha_init(&uk_swrand_def, seedv);
+	initialized = __true;
 
 	return 0;
 }
 
-static __u32 uk_swrand_randr_r(struct uk_swrand *r)
+static inline __u32 uk_swrand_randr_r(struct uk_swrand *r)
 {
 	__u32 res;
 
@@ -270,13 +279,14 @@ static __u32 uk_swrand_randr_r(struct uk_swrand *r)
 	}
 }
 
-__u32 uk_swrand_randr(void)
+int __check_result uk_swrand_randr(__u32 *val)
 {
-	__u32 ret;
+	if (unlikely(initialized == __false))
+		return -ENODEV;
 
 	uk_spin_lock(&swrand_lock);
-	ret = uk_swrand_randr_r(&uk_swrand_def);
+	*val = uk_swrand_randr_r(&uk_swrand_def);
 	uk_spin_unlock(&swrand_lock);
 
-	return ret;
+	return 0;
 }
