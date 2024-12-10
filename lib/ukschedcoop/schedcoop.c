@@ -126,10 +126,8 @@ static void schedcoop_schedule(struct uk_sched *s)
 	 * interrupted at the return instruction. And therefore at safe point.
 	 */
 	if (prev != next) {
-		if (next != &c->idle) {
-			UK_ASSERT(prev->sched);
+		if (next != &c->idle)
 			uk_sched_stats_next_count_incr(s);
-		}
 		uk_sched_thread_switch(next);
 	}
 }
