@@ -120,7 +120,7 @@ struct uk_random_driver_ops *device_init(void)
 
 	rndr = (isar >> ID_AA64ISAR0_EL1_RNDR_SHIFT) & ID_AA64ISAR0_EL1_RNDR_MASK;
 	if (unlikely(!rndr)) {
-		uk_pr_err("FEAT_RNG not available on this CPU\n");
+		uk_pr_debug("FEAT_RNG not available on this CPU\n");
 		return ERR2PTR(-ENOTSUP);
 	}
 
