@@ -183,15 +183,18 @@ int uk_swrand_fdt_init(void *fdt, struct uk_random_driver **drv)
 	int rc;
 
 	rc = fdt_chosen_rng_seed(fdt, &seedv, &seedc);
-	if (unlikely(rc))
-		return -ENOTSUP;
-
-	if (unlikely(seedc < CHACHA_SEED_LENGTH)) {
-		uk_pr_err("/chosen/rng-seed does not provide enough randomness\n");
+	if (unlikely(rc)) {
+		uk_pr_debug("Seed not set in the dtb\n");
 		return -ENOTSUP;
 	}
 
-	uk_pr_warn("The CSPRNG is initialized from the dtb\n");
+	if (unlikely(seedc < CHACHA_SEED_LENGTH)) {
+		uk_pr_err("The dtb does not provide enough randomness\n");
+		return -ENOTSUP;
+	}
+
+	uk_pr_warn("Passing the seed via the dtb is potentially insecure\n");
+	uk_pr_info("Initializing the random number generator...\n");
 
 	 /* prevent drivers from registering */
 	*drv = (void *)UK_SWRAND_DRIVER_NONE;
@@ -215,10 +218,13 @@ int uk_swrand_cmdline_init(struct uk_random_driver **drv)
 	 *       a way to tell whether a param has been set other
 	 *       than checking against its value.
 	 */
-	if (!memcmp(seedv, seedv_cmdl, seedc))
+	if (!memcmp(seedv, seedv_cmdl, seedc)) {
+		uk_pr_debug("Seed not set in the cmdline\n");
 		return -ENOTSUP;
+	}
 
-	uk_pr_warn("The CSPRNG is initialized from the cmdline\n");
+	uk_pr_warn("Passing the seed via the cmdline is potentially insecure\n");
+	uk_pr_info("Initializing the random number generator...\n");
 
 	 /* prevent drivers from registering */
 	*drv = (void *)UK_SWRAND_DRIVER_NONE;
@@ -250,8 +256,6 @@ int uk_swrand_init(struct uk_random_driver **drv)
 			  ret);
 		return ret;
 	}
-
-	uk_pr_info("Entropy source: %s\n", (*drv)->name);
 
 	chacha_init(&uk_swrand_def, seedv);
 	initialized = __true;

@@ -79,14 +79,23 @@ int __check_result uk_random_fill_buffer(void *buf, size_t buflen)
 
 int uk_random_init(struct uk_random_driver *drv)
 {
+	int rc;
+
 	UK_ASSERT(drv);
 
-	if (driver) /* initialized */
+	if (driver) { /* initialized */
+		uk_pr_debug("CSPRNG already initialized, ignoring driver %s\n",
+			    drv->name);
 		return 0;
+	}
 
 	driver = drv;
 
-	return uk_swrand_init(&driver);
+	rc = uk_swrand_init(&driver);
+	if (!rc)
+		uk_pr_info("CSPRNG seed source: %s\n", driver->name);
+
+	return rc;
 }
 
 #if CONFIG_LIBUKRANDOM_DTB_SEED || CONFIG_LIBUKRANDOM_CMDLINE_SEED
@@ -103,14 +112,19 @@ int uk_random_early_init(struct ukplat_bootinfo __maybe_unused *bi)
 {
 	int rc;
 #if CONFIG_LIBUKRANDOM_CMDLINE_SEED
-
 	rc = uk_swrand_cmdline_init(&driver);
-	if (!rc)
+	if (!rc) {
+		uk_pr_info("CSPRNG seed source: cmdline\n");
 		return 0;
+	}
 #endif /* CONFIG_LIBUKRANDOM_CMDLINE_SEED */
 
 #if CONFIG_LIBUKRANDOM_DTB_SEED
-	uk_swrand_fdt_init((void *)bi->dtb, &driver);
+	rc = uk_swrand_fdt_init((void *)bi->dtb, &driver);
+	if (!rc) {
+		uk_pr_info("CSPRNG seed source: dtb\n");
+		return 0;
+	}
 #endif /* CONFIG_LIBUKRANDOM_DTB_SEED */
 
 	return 0;
