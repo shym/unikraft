@@ -1695,6 +1695,9 @@ UK_SYSCALL_R_DEFINE(int, lstat, const char*, pathname, struct stat*, st)
 	return __lxstat_helper(1, pathname, st);
 }
 
+/* The fstat syscall is no longer implemented here; need to declare */
+long uk_syscall_r_fstat(long dirfd, long st);
+
 static int __fxstatat_helper(int ver __unused, int dirfd, const char *pathname,
 		struct stat *st, int flags)
 {
