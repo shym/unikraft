@@ -21,6 +21,11 @@
 #include <uk/posix-fdtab-legacy.h>
 #endif /* CONFIG_LIBPOSIX_FDTAB_LEGACY_SHIM */
 
+#if CONFIG_LIBPOSIX_PROCESS_EXECVE
+#include <uk/event.h>
+#include <uk/prio.h>
+#endif /* CONFIG_LIBPOSIX_PROCESS_EXECVE */
+
 #define UK_FDTAB_SIZE CONFIG_LIBPOSIX_FDTAB_MAXFDS
 UK_CTASSERT(UK_FDTAB_SIZE <= UK_FD_MAX);
 
@@ -376,6 +381,17 @@ void uk_fdtab_cloexec(void)
 {
 	fdtab_cleanup(0);
 }
+
+static int fdtab_handle_execve(void *data __unused)
+{
+	uk_fdtab_cloexec();
+	return 0;
+}
+
+#if CONFIG_LIBPOSIX_PROCESS_EXECVE
+UK_EVENT_HANDLER_PRIO(POSIX_PROCESS_EXECVE_EVENT, fdtab_handle_execve,
+		      UK_PRIO_EARLIEST);
+#endif /* CONFIG_LIBPOSIX_PROCESS_EXECVE */
 
 /* Cleanup all leftover open fds */
 static void term_posix_fdtab(const struct uk_term_ctx *tctx __unused)
