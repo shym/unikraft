@@ -1,0 +1,31 @@
+From 06631bcc46cfe3e3f74824d8a7c36f1a97246889 Mon Sep 17 00:00:00 2001
+From: Samuel Hym <samuel@tarides.com>
+Date: Wed, 11 Sep 2024 12:52:22 +0200
+Subject: [PATCH] lib/ukboot: Declare `main` as a strong symbol rather than a
+ weak one
+
+When a symbol is _declared_ weak, `ld` (at least GNU `ld`) will set it
+to `NULL` if the symbol cannot be found in the `.o` files (even if it
+could find it in a `.a` library). As `do_main` calls `main`
+inconditionnally (ie without testing whether it is available or not),
+this commit makes the declaration of the symbol strong, so that the
+linker fails if no `main` is found.
+
+Signed-off-by: Samuel Hym <samuel@tarides.com>
+---
+ lib/ukboot/boot.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/ukboot/boot.c b/lib/ukboot/boot.c
+index 65effd315b..faa0a23c99 100644
+--- a/lib/ukboot/boot.c
++++ b/lib/ukboot/boot.c
+@@ -110,7 +110,7 @@
+ extern char **boot_argv;
+ extern int boot_argc;
+ 
+-int main(int argc, char *argv[]) __weak;
++int main(int argc, char *argv[]);
+ static inline int do_main(int argc, char *argv[]);
+ 
+ #if CONFIG_LIBUKBOOT_MAINTHREAD

@@ -1,0 +1,35 @@
+From d056838ca2af110839bdefdb094e0f37fa7b8af4 Mon Sep 17 00:00:00 2001
+From: Samuel Hym <samuel@tarides.com>
+Date: Mon, 20 Jan 2025 18:40:30 +0100
+Subject: [PATCH] plat/kvm: Select `HAVE_IBMPC` only on x86_64
+
+Without this patch, asking `kraft` to build for QEMU on arm64 with its
+default configuration gives a series of warnings such as:
+
+```
+WARNING: unmet direct dependencies detected for HAVE_IBMPC_VGA
+  Depends on [n]: ARCH_X86_64 [=n]
+  Selected by [y]:
+  - HAVE_IBMPC [=y]
+```
+
+and `HAVE_IBMPC` is set to yes in the generated configuration.
+
+Signed-off-by: Samuel Hym <samuel@tarides.com>
+---
+ plat/kvm/Config.uk | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/plat/kvm/Config.uk b/plat/kvm/Config.uk
+index c6640cef3f..ce702d636c 100644
+--- a/plat/kvm/Config.uk
++++ b/plat/kvm/Config.uk
+@@ -103,7 +103,7 @@ config KVM_VMM_QEMU
+ 	imply LIBUKINTCTLR_GICV2 if ARCH_ARM_64
+ 	imply LIBUKRTC_PL031
+ 	imply LIBVGACONS if ARCH_X86_64
+-	select HAVE_IBMPC
++	select HAVE_IBMPC if ARCH_X86_64
+ 	select HAVE_PCI
+ 	select HAVE_MMIO
+ 
