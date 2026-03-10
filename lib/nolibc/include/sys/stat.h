@@ -25,12 +25,10 @@ extern "C" {
  *
  * Copied from kernel definition, but with padding replaced
  * by the corresponding correctly-sized userspace types.
- *
- * FIXME: This structure is defined for x86_64. On Musl, the ARM layout
- * is different.
  */
 
 struct stat {
+#if defined(CONFIG_ARCH_X86_64)
 	dev_t st_dev;
 	ino_t st_ino;
 	nlink_t st_nlink;
@@ -48,6 +46,24 @@ struct stat {
 	struct timespec st_mtim;
 	struct timespec st_ctim;
 	long unused[3];
+#else /* CONFIG_ARCH_ARM_64 */
+	dev_t st_dev;
+	ino_t st_ino;
+	mode_t st_mode;
+	nlink_t st_nlink;
+	uid_t st_uid;
+	gid_t st_gid;
+	dev_t st_rdev;
+	unsigned long __pad;
+	off_t st_size;
+	blksize_t st_blksize;
+	int __pad2;
+	blkcnt_t st_blocks;
+	struct timespec st_atim;
+	struct timespec st_mtim;
+	struct timespec st_ctim;
+	unsigned unused[2];
+#endif
 };
 
 #define st_atime st_atim.tv_sec
